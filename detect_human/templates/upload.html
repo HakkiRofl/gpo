@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload Face</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .upload-box { max-width: 500px; padding: 20px; border: 2px solid #ddd; }
+        input[type="file"] { margin: 10px 0; }
+        button { padding: 10px 25px; background: #007bff; color: white; border: none; cursor: pointer; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <div class="nav">
+        <a href="/">← Back to Live View</a>
+    </div>
+
+    <div class="upload-box">
+        <h1>Upload New Face</h1>
+        <form method="post" enctype="multipart/form-data">
+            <div>
+                <label>Select face photo:</label><br>
+                <input type="file" name="file" accept="image/*" required>
+            </div>
+            <div>
+                <label>Name:</label><br>
+                <input type="text" name="name" placeholder="Enter name" required>
+            </div>
+            <button type="submit">Upload and Register</button>
+        </form>
+    </div>
+</body>
+</html>

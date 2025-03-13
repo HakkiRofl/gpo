@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Face Recognition System</title>
+    <style>
+        /* Общие стили */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f2f5;
+        }
+
+        .nav {
+            margin-bottom: 30px;
+            padding: 15px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .nav button {
+            margin-right: 15px;
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .nav button:hover {
+            background: #0056b3;
+        }
+
+        /* Основной контейнер */
+        .container {
+            display: flex;
+            gap: 30px;
+            margin-top: 20px;
+        }
+
+        /* Секция с видео */
+        .video-section {
+            flex: 1;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* Секция с пользователями */
+        .users-section {
+            flex: 1;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        /* Форма загрузки */
+        .upload-section {
+            display: none;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 500px;
+            margin: 20px auto;
+        }
+
+        /* Элементы интерфейса */
+        .user-card {
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            transition: transform 0.2s;
+        }
+
+        .user-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .user-photo {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        input[type="text"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 200px;
+            margin-right: 10px;
+        }
+
+        button.action-btn {
+            padding: 8px 15px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+
+        .update-btn {
+            background: #28a745;
+            color: white;
+        }
+
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+        }
+
+        .upload-btn {
+            background: #17a2b8;
+            color: white;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        /* Форма загрузки */
+        .upload-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .upload-form input[type="file"] {
+            padding: 10px;
+            border: 2px dashed #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Навигация -->
+    <div class="nav">
+        <button onclick="showSection('main')">Live View</button>
+        <button onclick="showSection('upload')">Upload Photo</button>
+    </div>
+
+    <!-- Основной контент -->
+    <div id="mainSection" class="container">
+        <div class="video-section">
+            <h2>Live Camera Feed</h2>
+            <img src="{{ url_for('video_feed') }}" width="640" height="480">
+        </div>
+
+        <div class="users-section">
+            <h2>Recognized Persons</h2>
+            <div id="usersList">
+                {% for user in users %}
+                <div class="user-card" id="{{ user.id }}">
+                    {% if user.photo %}
+                    <img src="{{ user.photo }}" class="user-photo" alt="User photo">
+                    {% endif %}
+                    <h3>{{ user.name or 'Unknown' }}</h3>
+                    <p>ID: {{ user.id }}</p>
+                    <p>Registered: {{ user.date }}</p>
+                    <input type="text" placeholder="Enter name" value="{{ user.name or '' }}">
+                    <button class="action-btn update-btn" onclick="updateName('{{ user.id }}')">Update</button>
+                    <button class="action-btn delete-btn" onclick="deleteUser('{{ user.id }}')">Delete</button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Секция загрузки -->
+    <div id="uploadSection" class="upload-section">
+        <h2>Upload New Face</h2>
+        <form class="upload-form" onsubmit="handleUpload(event)">
+            <input type="file" id="faceFile" accept="image/*" required>
+            <input type="text" id="userName" placeholder="Enter name" required>
+            <button type="submit" class="action-btn upload-btn">Upload Face</button>
+        </form>
+    </div>
+
+    <script>
+        // Переключение секций
+        function showSection(sectionId) {
+            document.getElementById('mainSection').style.display =
+                sectionId === 'main' ? 'flex' : 'none';
+            document.getElementById('uploadSection').style.display =
+                sectionId === 'upload' ? 'block' : 'none';
+        }
+
+        // Обновление имени
+        async function updateName(userId) {
+        const card = document.getElementById(userId);
+        const input = card.querySelector('input');
+        const newName = input.value.trim();
+        const nameElement = card.querySelector('h3');
+
+        if (!newName) {
+            alert('Please enter a valid name');
+            input.value = nameElement.textContent; // Восстанавливаем предыдущее значение
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/users', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    id: userId,
+                    name: newName
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.error) {
+                alert(`Error: ${result.error}`);
+                input.value = nameElement.textContent; // Восстановление значения
+            } else {
+                // Обновляем только изменённые данные
+                nameElement.textContent = result.user.name;
+                if (result.user.photo) {
+                    const img = card.querySelector('.user-photo');
+                    if (img) img.src = result.user.photo;
+                }
+            }
+        } catch (error) {
+            alert('Update failed: ' + error.message);
+            input.value = nameElement.textContent;
+        }
+    }
+
+        // Удаление пользователя
+        async function deleteUser(userId) {
+            if (!confirm('Are you sure you want to delete this user?')) return;
+
+            try {
+                const response = await fetch('/api/users', {
+                    method: 'DELETE',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({id: userId})
+                });
+
+                const result = await response.json();
+                if (result.error) {
+                    alert(`Error: ${result.error}`);
+                } else {
+                    document.getElementById(userId).remove();
+                }
+            } catch (error) {
+                alert('Delete failed: ' + error.message);
+            }
+        }
+
+        // Обработка загрузки файла
+        async function handleUpload(event) {
+            event.preventDefault();
+            const file = document.getElementById('faceFile').files[0];
+            const name = document.getElementById('userName').value;
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('name', name);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                if (result.error) {
+                    alert(`Error: ${result.error}`);
+                } else {
+                    alert('Successfully uploaded!');
+                    showSection('main');
+                    location.reload();
+                }
+            } catch (error) {
+                alert('Upload failed: ' + error.message);
+            }
+        }
+
+        // Автообновление списка каждые 5 секунд
+        setInterval(async () => {
+            const response = await fetch('/api/users');
+            const users = await response.json();
+
+            const usersList = document.getElementById('usersList');
+            usersList.innerHTML = users.map(user => `
+                <div class="user-card" id="${user.id}">
+                    ${user.photo ? `<img src="${user.photo}" class="user-photo" alt="User photo">` : ''}
+                    <h3>${user.name || 'Unknown'}</h3>
+                    <p>ID: ${user.id}</p>
+                    <p>Registered: ${user.date}</p>
+                    <input type="text" placeholder="Enter name" value="${user.name || ''}">
+                    <button class="action-btn update-btn" onclick="updateName('${user.id}')">Update</button>
+                    <button class="action-btn delete-btn" onclick="deleteUser('${user.id}')">Delete</button>
+                </div>
+            `).join('');
+        }, 5000);
+    </script>
+</body>
+</html>
